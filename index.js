@@ -44,7 +44,7 @@ app.post("/chat", async (req, res) => {
 
   // 🔥 Call LLaMA with full chat context
  const llamaResponse = await axios.post(
-  "https://llama.api.meta.com/v1/chat/completions",
+  "https://api.llama.com/v1/chat/completions",
   {
     messages: messages,
     model: "Llama-4-Maverick-17B-128E-Instruct-FP8", // or whatever model you’re using
