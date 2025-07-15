@@ -1,4 +1,5 @@
 require('dotenv').config();
+const mongoose = require('mongoose');
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -6,6 +7,16 @@ const cors = require('cors');
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Connect to MongoDB
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+}).then(() => {
+  console.log("Connected to MongoDB");
+}).catch((err) => {
+  console.error("MongoDB connection error:", err);
+});
 
 const systemMessage = {
   role: "system",
@@ -18,32 +29,36 @@ Always respond with encouragement, insight, and purpose.
 `.trim()
 };
 
-app.post('/chat', async (req, res) => {
-  const { message, history } = req.body;
+const { saveMessage, getRecentMessages } = require('./memory');
 
-  try {
-    const response = await axios.post(
-      'https://api.llama.com/v1/chat/completions',
-      {
-        model: 'Llama-4-Maverick-17B-128E-Instruct-FP8',
-        messages: [systemMessage, ...history, { role: 'user', content: message }],
-        temperature: 0.7,
-        max_tokens: 512,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.LLAMA_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
+app.post("/chat", async (req, res) => {
+  const { message, sessionId } = req.body;
+
+  // 🧠 Pull from MongoDB memory
+  const history = await getRecentMessages(sessionId);
+
+  const messages = [
+    ...history.reverse().map(m => ({ role: m.role, content: m.content })),
+    { role: "user", content: message }
+  ];
+
+  // 🔥 Call LLaMA with full chat context
+  const llamaResponse = await axios.post(
+    "https://api.meta.llama.endpoint",  // real endpoint here
+    { messages },
+    {
+      headers: {
+        Authorization: `Bearer ${process.env.LLAMA_API_KEY}`
       }
-    );
+    }
+  );
 
-    const reply = response.data?.completion_message?.content?.text || "No response.";
-    res.json({ reply });
-  } catch (err) {
-    console.error('LLaMA API Error:', err.message);
-    res.status(500).json({ reply: "Sparki ran into a problem." });
-  }
+  const reply = llamaResponse.data.completion_message.content.text;
+
+  await saveMessage(sessionId, "user", message);
+  await saveMessage(sessionId, "assistant", reply);
+
+  res.json({ reply });
 });
 
 app.listen(5000, () => console.log('⚡ Sparki backend running on http://localhost:5000'));
