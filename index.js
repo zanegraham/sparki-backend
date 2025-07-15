@@ -44,7 +44,7 @@ app.post("/chat", async (req, res) => {
 
   // 🔥 Call LLaMA with full chat context
   const llamaResponse = await axios.post(
-    "https://api.meta.llama.endpoint",  // real endpoint here
+    "https://api.llama.com/v1/chat/completions",
     { messages },
     {
       headers: {
