@@ -38,6 +38,7 @@ app.post("/chat", async (req, res) => {
   const history = await getRecentMessages(sessionId);
 
   const messages = [
+    systemMessage,
     ...history.reverse().map(m => ({ role: m.role, content: m.content })),
     { role: "user", content: message }
   ];
